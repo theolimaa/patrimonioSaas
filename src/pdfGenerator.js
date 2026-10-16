@@ -23,6 +23,19 @@ export function generatePDF(appData, sections, clientInfo) {
   const sucessao = sections.includes('sucessao') ? appData.sucessao : null
   const pgbl = sections.includes('pgbl') ? appData.pgbl : null
 
+  // Só os módulos marcados entram no PDF (capa e corpo), numerados em sequência
+  const has = function(k) { return sections.includes(k) }
+  const order = ['riscos', 'sucessao', 'pgbl'].filter(has)
+  const num = function(k) { return String(order.indexOf(k) + 1).padStart(2, '0') }
+  const COVER = {
+    riscos: { title: 'Gestão de Riscos', desc: 'Análise do gap patrimonial e da cobertura de invalidez necessária para proteger sua família.' },
+    sucessao: { title: 'Sucessão', desc: 'Consolidação do patrimônio inventariável e estimativa dos custos de inventário conforme estado civil e regime de bens.' },
+    pgbl: { title: 'Tributário', desc: 'Benefício fiscal do PGBL, economia no IR e projeção patrimonial com rentabilidade real de 4% a.a.' },
+  }
+  const coverMods = order.map(function(k) {
+    return '<div class="cover-mod"><div class="cover-mod-num">' + num(k) + '</div><div class="cover-mod-title">' + COVER[k].title + '</div><div class="cover-mod-desc">' + COVER[k].desc + '</div></div>'
+  }).join('')
+
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -156,30 +169,15 @@ export function generatePDF(appData, sections, clientInfo) {
     </div>
   </div>
 
-  <div class="cover-modules">
-    <div class="cover-mod">
-      <div class="cover-mod-num">01</div>
-      <div class="cover-mod-title">Gestão de Riscos</div>
-      <div class="cover-mod-desc">Análise do gap patrimonial e da cobertura de invalidez necessária para proteger sua família.</div>
-    </div>
-    <div class="cover-mod">
-      <div class="cover-mod-num">02</div>
-      <div class="cover-mod-title">Sucessão</div>
-      <div class="cover-mod-desc">Consolidação do patrimônio inventariável e estimativa dos custos de inventário conforme estado civil e regime de bens.</div>
-    </div>
-    <div class="cover-mod">
-      <div class="cover-mod-num">03</div>
-      <div class="cover-mod-title">Tributário</div>
-      <div class="cover-mod-desc">Benefício fiscal do PGBL, economia no IR e projeção patrimonial com rentabilidade real de 4% a.a.</div>
-    </div>
-  </div>
+  ${order.length ? '<div class="cover-modules" style="grid-template-columns:repeat(' + order.length + ',1fr)">' + coverMods + '</div>' : ''}
+</div>
 </div>
 
 <div class="content">
 
-<div class="module">
+${has('riscos') ? `<div class="module">
 <div class="section">
-  <div class="section-tag">Módulo 01</div>
+  <div class="section-tag">Módulo ${num('riscos')}</div>
   <div class="section-title">Gestão de Riscos</div>
   <div class="section-desc">O planejamento de gestão de riscos tem como objetivo proteger o patrimônio e a renda do investidor durante a sua vida ativa. Analisamos o gap entre o patrimônio atual e a meta de aposentadoria, identificando a necessidade de cobertura por invalidez ou morte prematura para garantir a segurança financeira da família.</div>
   ${riscos ? `
@@ -210,11 +208,11 @@ export function generatePDF(appData, sections, clientInfo) {
   ${riscos.observacaoRiscos ? `<div class="obs-box"><strong>Observações do Assessor:</strong><br/><br/>${riscos.observacaoRiscos.replace(/\n/g, '<br/>')}</div>` : ''}
   ` : '<div class="empty-note">Nenhum dado preenchido para este módulo.</div>'}
 </div>
-</div>
+</div>` : ''}
 
-<div class="module">
+${has('sucessao') ? `<div class="module">
 <div class="section">
-  <div class="section-tag">Módulo 02</div>
+  <div class="section-tag">Módulo ${num('sucessao')}</div>
   <div class="section-title">Planejamento Sucessório</div>
   <div class="section-desc">O planejamento sucessório visa organizar a transferência do patrimônio aos herdeiros da forma mais eficiente possível, minimizando os custos de inventário e garantindo que os bens cheguem ao destino certo. Consolidamos o patrimônio inventariável com base no estado civil do cliente e, quando aplicável, no regime de bens, estimando os custos totais do processo sucessório.</div>
   ${sucessao ? `
@@ -255,11 +253,11 @@ export function generatePDF(appData, sections, clientInfo) {
   ${sucessao.observacaoSucessao ? `<div class="obs-box"><strong>Observações do Assessor:</strong><br/><br/>${sucessao.observacaoSucessao.replace(/\n/g, '<br/>')}</div>` : ''}
   ` : '<div class="empty-note">Nenhum dado preenchido para este módulo.</div>'}
 </div>
-</div>
+</div>` : ''}
 
-<div class="module">
+${has('pgbl') ? `<div class="module">
 <div class="section">
-  <div class="section-tag">Módulo 03</div>
+  <div class="section-tag">Módulo ${num('pgbl')}</div>
   <div class="section-title">Planejamento Tributário</div>
   <div class="section-desc">O objetivo do planejamento tributário é fazer o investidor pagar menos imposto de formas totalmente legais, seja através de estratégias de renda ou de investimento. O PGBL é uma das principais ferramentas disponíveis, permitindo deduzir até 12% da renda bruta tributável e gerar economia real no Imposto de Renda, com o capital continuando a crescer dentro do plano.</div>
   ${pgbl ? `
@@ -277,7 +275,7 @@ export function generatePDF(appData, sections, clientInfo) {
   ${pgbl.observacaoTributaria ? `<div class="obs-box"><strong>Observações do Planejamento Tributário:</strong><br/><br/>${pgbl.observacaoTributaria.replace(/\n/g, '<br/>')}</div>` : ''}
   ` : '<div class="empty-note">Nenhum dado preenchido para este módulo.</div>'}
 </div>
-</div>
+</div>` : ''}
 
 <div class="footer">
   <div class="footer-text">Relatório gerado em ${fmtDate()} · Projeções com caráter ilustrativo · 4% a.a. real</div>
