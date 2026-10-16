@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { messages, max_tokens, pdf_base64, mime_type } = req.body
+    const { messages, max_tokens, pdf_base64, mime_type, files } = req.body
 
     const parts = []
 
@@ -37,6 +37,15 @@ export default async function handler(req, res) {
       }
 
       parts.push({ inline_data: { mime_type: detectedMime, data: pdf_base64 } })
+    }
+
+    // Vários arquivos (ex.: documentos do cliente para gerar observações)
+    if (Array.isArray(files)) {
+      for (const f of files) {
+        if (f && f.data) {
+          parts.push({ inline_data: { mime_type: f.mime_type || 'application/pdf', data: f.data } })
+        }
+      }
     }
 
     if (messages && messages.length > 0) {

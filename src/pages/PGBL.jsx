@@ -5,6 +5,7 @@ import {
   calcIR, calcINSSMensal, calcINSSAnual, calcPGBL, calcComparativoIR,
   projetarPGBL, callGeminiPDF, callClaude
 } from '../utils'
+import ObservacaoIA from '../components/ObservacaoIA'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function truncar(texto, max) {
@@ -187,6 +188,20 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
   const comparativo = calcComparativoIR(rendaAnualNum, inssAnualFinal, pgblInfo.pgblIdeal, rendExclusivosNum)
   const projection = projetarPGBL(pgblRestante, irInfo.aliquotaMarginal, anos)
   const hasData = rendaAnualNum > 0
+
+  const contextoIA = hasData ? [
+    'Renda anual compensável: ' + fmtBRL(rendaAnualNum),
+    'Alíquota marginal do IR: ' + (irInfo.aliquotaMarginal * 100).toFixed(1) + '%',
+    'INSS anual: ' + fmtBRL(inssAnualFinal),
+    rendExclusivosNum > 0 ? 'Rendimentos exclusivos na fonte (PLR etc.): ' + fmtBRL(rendExclusivosNum) : '',
+    'PGBL ideal (12% da renda): ' + fmtBRL(pgblInfo.pgblIdeal) + ' por ano',
+    previdenciaCorpAnual > 0 ? 'Previdência corporativa já existente: ' + fmtBRL(previdenciaCorpAnual) + ' por ano' + (irAnalise && irAnalise.nomePrevidenciaCorp ? ' (' + irAnalise.nomePrevidenciaCorp + ')' : '') : '',
+    'PGBL restante a aportar: ' + fmtBRL(pgblRestante) + ' por ano',
+    'Economia fiscal anual estimada: ' + fmtBRL(economiaRestante),
+    'Horizonte da projeção: ' + anos + ' anos',
+    irAnalise && irAnalise.outrasRendas && irAnalise.outrasRendas.length > 0 ? 'Outras rendas identificadas: ' + irAnalise.outrasRendas.map(function(r) { return r.descricao + ' (' + fmtBRL(r.valor) + ')' }).join('; ') : '',
+    irAnalise && irAnalise.observacoes ? 'Observações da leitura do documento: ' + irAnalise.observacoes : '',
+  ].filter(Boolean).join('\n') : ''
 
   useEffect(function() {
     if (hasData) {
@@ -588,6 +603,13 @@ RETORNE SOMENTE ESTE JSON:
         <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: 1.7 }}>
           Adicione estratégias, recomendações ou observações sobre o planejamento tributário do cliente. Este texto será incluído no relatório PDF.
         </div>
+        <ObservacaoIA
+          modulo="Planejamento Tributário"
+          contexto={contextoIA}
+          texto={observacaoTributaria}
+          arquivos={mode === 'upload' ? [...irFile, ...holerites] : []}
+          onGerado={function(t) { upd('observacaoTributaria')(t) }}
+        />
         <textarea
           value={observacaoTributaria || ''}
           onChange={function(e) { upd('observacaoTributaria')(e.target.value) }}

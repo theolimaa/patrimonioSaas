@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react'
 import { fmtBRL, fmtBRLShort, parseCents, fromCents, centsToNum } from '../utils'
+import ObservacaoIA from '../components/ObservacaoIA'
 
 function SectionTitle() {
   return (
@@ -84,6 +85,15 @@ export default function Riscos({ formState, setFormState, clientInfo, onClientIn
   const coberturaNecessaria = Math.max(0, aposentadoria - atual)
   const gapDescoberto = Math.max(0, coberturaNecessaria - coberturaContratadaNum)
   const pctCoberto = aposentadoria > 0 ? Math.min(100, (atual / aposentadoria) * 100) : 0
+
+  const contextoIA = (atual > 0 || aposentadoria > 0) ? [
+    'Patrimônio atual: ' + fmtBRL(atual),
+    'Meta de patrimônio para a aposentadoria: ' + fmtBRL(aposentadoria),
+    'Cobertura necessária (gap patrimonial): ' + fmtBRL(coberturaNecessaria),
+    'Seguro de invalidez já contratado: ' + fmtBRL(coberturaContratadaNum),
+    'Gap descoberto: ' + fmtBRL(gapDescoberto),
+    'Progresso rumo à meta: ' + pctCoberto.toFixed(1) + '%',
+  ].join('\n') : ''
 
   useEffect(function() {
     if (atual > 0 || aposentadoria > 0) {
@@ -268,6 +278,12 @@ export default function Riscos({ formState, setFormState, clientInfo, onClientIn
         <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: 1.7 }}>
           Adicione estratégias, recomendações ou comentários sobre a gestão de riscos do cliente. Este texto será incluído no relatório PDF.
         </div>
+        <ObservacaoIA
+          modulo="Gestão de Riscos"
+          contexto={contextoIA}
+          texto={observacaoRiscos}
+          onGerado={function(t) { setFormState(function(prev) { return { ...prev, observacaoRiscos: t } }) }}
+        />
         <textarea
           value={observacaoRiscos || ''}
           onChange={function(e) { setFormState(function(prev) { return { ...prev, observacaoRiscos: e.target.value } }) }}

@@ -333,6 +333,53 @@ export async function callGeminiPDF(file, prompt, maxTokens) {
   })
 }
 
+// ── Gera o texto das Observações do Assessor a partir dos dados e documentos ──
+// Só envia ao modelo os números do planejamento (sem nome do cliente) e, se houver,
+// os documentos anexados, respeitando o limite de corpo da função serverless.
+const LIMITE_BYTES_DOCS = 3 * 1024 * 1024
+
+export async function gerarObservacao(modulo, contexto, arquivos) {
+  const prompt = [
+    'Você é um assessor de investimentos e planejamento patrimonial escrevendo o campo "Observações do Assessor" do módulo "' + modulo + '" de um relatório que será entregue ao cliente.',
+    '',
+    'Com base APENAS nas informações abaixo (e nos documentos anexados, se houver), escreva de 2 a 3 parágrafos curtos com a leitura da situação do cliente e as estratégias ou recomendações que fazem sentido.',
+    '',
+    'Regras:',
+    '- Português do Brasil, tom próximo e profissional, nunca corporativo.',
+    '- Use os números fornecidos exatamente como estão. Não invente valores, produtos, datas nem fatos que não estejam nas informações.',
+    '- Se algo importante não foi informado, diga em uma frase o que vale confirmar com o cliente.',
+    '- Não cite taxa de assessoria e não prometa rentabilidade.',
+    '- Texto corrido: sem markdown, sem asteriscos, sem listas com símbolos, sem emoji e sem travessão.',
+    '',
+    'Informações preenchidas:',
+    contexto,
+  ].join('\n')
+
+  const files = []
+  let bytes = 0
+  const lista = arquivos || []
+  for (let i = 0; i < lista.length; i++) {
+    const f = lista[i]
+    if (bytes + f.size > LIMITE_BYTES_DOCS) continue
+    bytes += f.size
+    files.push({ data: await fileToBase64(f), mime_type: f.type || 'application/pdf' })
+  }
+
+  const response = await fetch('/api/analyze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ files: files, messages: [{ role: 'user', content: prompt }], max_tokens: 1200 }),
+  })
+  if (!response.ok) {
+    const txt = await response.text()
+    throw new Error('API error ' + response.status + ': ' + txt.slice(0, 200))
+  }
+  const data = await response.json()
+  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error))
+  const texto = (data.content || []).map(function(b) { return b.text || '' }).join('').trim()
+  return { texto: texto, usados: files.length, total: lista.length }
+}
+
 // ── ID generator ─────────────────────────────────────────────────────────────
 export function genId() {
   return Math.random().toString(36).slice(2, 9)

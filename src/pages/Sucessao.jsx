@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { fmtBRL, fmtBRLShort, parseCents, fromCents, centsToNum, calcInventario, calcPatrimonioInventariavel, genId } from '../utils'
+import ObservacaoIA from '../components/ObservacaoIA'
 
 function SectionTitle() {
   return (
@@ -94,6 +95,22 @@ export default function Sucessao({ formState, setFormState, patrimonioFinanceiro
   const patrimonioLiquido = calcs.totalInventariavel - totalCustos
   const gapCoberturaMorte = Math.max(0, totalCustos - coberturaNum - previdenciaNum)
   const hasData = (calcs.totalBruto + previdenciaNum) > 0
+
+  const imoveisComValor = imoveis.filter(function(x) { return centsToNum(x.valor) > 0 })
+  const veiculosComValor = veiculos.filter(function(x) { return centsToNum(x.valor) > 0 })
+  const contextoIA = hasData ? [
+    'Estado civil: ' + (estadoCivil || 'não informado'),
+    isCasado ? 'Regime de bens: ' + (regimeCasamento || 'não informado') : '',
+    'Imóveis: ' + imoveisComValor.length + ', valor total ' + fmtBRL(imoveisComValor.reduce(function(a, x) { return a + centsToNum(x.valor) }, 0)),
+    'Veículos: ' + veiculosComValor.length + ', valor total ' + fmtBRL(veiculosComValor.reduce(function(a, x) { return a + centsToNum(x.valor) }, 0)),
+    'Patrimônio financeiro (sem previdência): ' + fmtBRL(patrimonioFinanceiroInventariavel),
+    'Previdência privada (não entra no inventário): ' + fmtBRL(previdenciaNum),
+    'Seguro de vida já contratado: ' + fmtBRL(coberturaNum),
+    'Patrimônio inventariável: ' + fmtBRL(calcs.totalInventariavel),
+    'Custos estimados de inventário (15%): ' + fmtBRL(totalCustos),
+    'Patrimônio líquido transferido aos herdeiros: ' + fmtBRL(patrimonioLiquido),
+    'Gap descoberto para cobrir os custos: ' + fmtBRL(gapCoberturaMorte),
+  ].filter(Boolean).join('\n') : ''
 
   useEffect(function() {
     if (hasData) {
@@ -388,6 +405,12 @@ export default function Sucessao({ formState, setFormState, patrimonioFinanceiro
         <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: 1.7 }}>
           Adicione estratégias, recomendações ou comentários sobre o planejamento sucessório do cliente. Este texto será incluído no relatório PDF.
         </div>
+        <ObservacaoIA
+          modulo="Planejamento Sucessório"
+          contexto={contextoIA}
+          texto={observacaoSucessao}
+          onGerado={function(t) { setFormState(function(prev) { return { ...prev, observacaoSucessao: t } }) }}
+        />
         <textarea
           value={observacaoSucessao || ''}
           onChange={function(e) { setFormState(function(prev) { return { ...prev, observacaoSucessao: e.target.value } }) }}
