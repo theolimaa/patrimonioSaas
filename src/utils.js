@@ -349,6 +349,7 @@ export async function gerarObservacao(modulo, contexto, arquivos) {
     '- Use os números fornecidos exatamente como estão. Não invente valores, produtos, datas nem fatos que não estejam nas informações.',
     '- Se algo importante não foi informado, diga em uma frase o que vale confirmar com o cliente.',
     '- Não cite taxa de assessoria e não prometa rentabilidade.',
+    '- Comece direto pela análise: sem saudação (nada de "Olá" ou "Prezado") e sem apresentação, como um trecho de relatório.',
     '- Texto corrido: sem markdown, sem asteriscos, sem listas com símbolos, sem emoji e sem travessão.',
     '',
     'Informações preenchidas:',
