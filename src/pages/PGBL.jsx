@@ -195,7 +195,8 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
     'INSS anual: ' + fmtBRL(inssAnualFinal),
     rendExclusivosNum > 0 ? 'Rendimentos exclusivos na fonte (PLR etc.): ' + fmtBRL(rendExclusivosNum) : '',
     'PGBL ideal (12% da renda): ' + fmtBRL(pgblInfo.pgblIdeal) + ' por ano',
-    previdenciaCorpAnual > 0 ? 'Previdência corporativa já existente: ' + fmtBRL(previdenciaCorpAnual) + ' por ano' + (irAnalise && irAnalise.nomePrevidenciaCorp ? ' (' + irAnalise.nomePrevidenciaCorp + ')' : '') : '',
+    irAnalise && irAnalise.vgblCorporativoAnual > 0 ? 'Previdência corporativa em VGBL: ' + fmtBRL(irAnalise.vgblCorporativoAnual) + ' por ano (VGBL não dá dedução no IR e não consome o limite de 12% do PGBL)' : '',
+    previdenciaCorpAnual > 0 ? 'Previdência corporativa em PGBL já existente: ' + fmtBRL(previdenciaCorpAnual) + ' por ano' + (irAnalise && irAnalise.nomePrevidenciaCorp ? ' (' + irAnalise.nomePrevidenciaCorp + ')' : '') : '',
     'PGBL restante a aportar: ' + fmtBRL(pgblRestante) + ' por ano',
     'Economia fiscal anual estimada: ' + fmtBRL(economiaRestante),
     'Horizonte da projeção: ' + anos + ' anos',
@@ -227,12 +228,13 @@ export default function PGBL({ formState, setFormState, onDataChange }) {
 Preciso saber:
 1. rendaCompensavelAnual: soma de todos os rendimentos tributáveis compensáveis pelo PGBL (salário, pró-labore, aluguéis, etc). EXCLUIR: 13º salário, PLR, dividendos, rendimentos com tributação exclusiva
 2. inss: total de INSS/contribuição previdenciária descontado no ano
-3. pgblCorporativoAnual: se houver desconto de previdência complementar/PGBL via empresa em folha, o valor anual total
+3. pgblCorporativoAnual: valor anual total descontado em folha para previdência complementar do tipo PGBL (esse tipo é dedutível no IR). Em holerite, multiplique o valor mensal por 12. Se o plano for VGBL, NÃO coloque aqui: use 0.
+3b. vgblCorporativoAnual: valor anual total descontado em folha para previdência do tipo VGBL (não é dedutível no IR). Em holerite, valor mensal x 12. Se não houver VGBL, use 0. Atenção: o nome do plano costuma trazer a sigla (ex.: "PREV PRIVADA NORMAL PARTIC (VGBL)"), e quando a sigla for VGBL o valor vai em vgblCorporativoAnual, nunca em pgblCorporativoAnual.
 4. nomePrevidenciaCorp: nome do plano de previdência corporativa se encontrado, ou null
 5. outrasRendas: lista de rendimentos além do salário principal (aluguéis, pró-labore, pensão, etc)
 
 RETORNE SOMENTE ESTE JSON:
-{"rendaCompensavelAnual":0,"inss":0,"pgblCorporativoAnual":0,"nomePrevidenciaCorp":null,"outrasRendas":[{"descricao":"string","valor":0,"tributavel":true}],"observacoes":"string explicando o que encontrou"}`
+{"rendaCompensavelAnual":0,"inss":0,"pgblCorporativoAnual":0,"vgblCorporativoAnual":0,"nomePrevidenciaCorp":null,"outrasRendas":[{"descricao":"string","valor":0,"tributavel":true}],"observacoes":"string explicando o que encontrou"}`
 
       setLoadingMsg('Analisando documento com IA...')
 
@@ -247,10 +249,19 @@ RETORNE SOMENTE ESTE JSON:
 
       const parsed = JSON.parse(clean.slice(si, ei + 1))
 
+      // VGBL não gera dedução no IR, então nunca consome o limite de 12% do PGBL
+      let pgblCorp = parsed.pgblCorporativoAnual || 0
+      let vgblCorp = parsed.vgblCorporativoAnual || 0
+      if (/vgbl/i.test(parsed.nomePrevidenciaCorp || '') && pgblCorp > 0) {
+        vgblCorp += pgblCorp
+        pgblCorp = 0
+      }
+
       upd('irAnalise')({
         rendaCompensavelAnual: parsed.rendaCompensavelAnual || 0,
         inss: parsed.inss || 0,
-        pgblCorporativoAnual: parsed.pgblCorporativoAnual || 0,
+        pgblCorporativoAnual: pgblCorp,
+        vgblCorporativoAnual: vgblCorp,
         nomePrevidenciaCorp: parsed.nomePrevidenciaCorp || null,
         outrasRendas: parsed.outrasRendas || [],
         observacoes: parsed.observacoes || '',
@@ -378,7 +389,7 @@ RETORNE SOMENTE ESTE JSON:
                   {[
                     { label: 'Renda compensável anual', value: fmtBRL(irAnalise.rendaCompensavelAnual), hint: 'Base para cálculo dos 12%', destaque: true },
                     { label: 'INSS anual', value: fmtBRL(irAnalise.inss), hint: 'Deduzido da base do IR' },
-                    { label: 'Prev. corporativa', value: fmtBRL(irAnalise.pgblCorporativoAnual), hint: irAnalise.nomePrevidenciaCorp || 'PGBL via empresa' },
+                    { label: irAnalise.vgblCorporativoAnual > 0 && !irAnalise.pgblCorporativoAnual ? 'Prev. corporativa (VGBL)' : 'Prev. corporativa', value: fmtBRL(irAnalise.pgblCorporativoAnual || irAnalise.vgblCorporativoAnual || 0), hint: irAnalise.vgblCorporativoAnual > 0 && !irAnalise.pgblCorporativoAnual ? 'Sem dedução no IR' : (irAnalise.nomePrevidenciaCorp || 'PGBL via empresa') },
                   ].map(function(item) {
                     return (
                       <div key={item.label} style={{ background: item.destaque ? 'var(--gold-dim)' : 'var(--bg-input)', border: item.destaque ? '1px solid var(--gold)' : '1px solid var(--border)', borderRadius: '9px', padding: '13px 15px' }}>
@@ -390,6 +401,11 @@ RETORNE SOMENTE ESTE JSON:
                   })}
                 </div>
 
+                {irAnalise.vgblCorporativoAnual > 0 && (
+                  <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', fontSize: '13px', color: 'var(--text-muted)' }}>
+                    ℹ️ <strong style={{ color: 'var(--gold-light)' }}>Previdência corporativa em VGBL</strong> — {irAnalise.nomePrevidenciaCorp || 'VGBL'}: {fmtBRL(irAnalise.vgblCorporativoAnual)}/ano ({fmtBRL(irAnalise.vgblCorporativoAnual / 12)}/mês). O VGBL não é dedutível no IR, então não reduz o limite de 12% e o PGBL segue com o espaço integral.
+                  </div>
+                )}
                 {irAnalise.pgblCorporativoAnual > 0 && (
                   <div style={{ background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', fontSize: '13px', color: 'var(--text-muted)' }}>
                     ✅ <strong style={{ color: 'var(--gold-light)' }}>Previdência corporativa identificada</strong> — {irAnalise.nomePrevidenciaCorp || 'PGBL fechado'}: {fmtBRL(irAnalise.pgblCorporativoAnual)}/ano ({fmtBRL(irAnalise.pgblCorporativoAnual / 12)}/mês). Esse valor já conta para o limite de 12%.

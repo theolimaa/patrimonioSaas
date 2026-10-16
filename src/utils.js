@@ -346,6 +346,7 @@ export async function gerarObservacao(modulo, contexto, arquivos) {
     '',
     'Regras:',
     '- Português do Brasil, tom próximo e profissional, nunca corporativo.',
+    '- VGBL não dá dedução no imposto de renda: nunca fale em restituição ou economia fiscal sobre VGBL, e nunca o trate como PGBL nem como consumo do limite de 12%.',
     '- Use os números fornecidos exatamente como estão. Não invente valores, produtos, datas nem fatos que não estejam nas informações.',
     '- Se algo importante não foi informado, diga em uma frase o que vale confirmar com o cliente.',
     '- Não cite taxa de assessoria e não prometa rentabilidade.',
